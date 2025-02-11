@@ -52,20 +52,58 @@ const App = () => {
       # Project Title
       
       ## Overview
-      [A compelling description of the project]
+      [Provide a compelling description of the project, its target audience, and its unique value proposition]
       
       ## Why This Fits You
-      [Explanation of how this matches their strengths and interests]
+      [Detailed explanation of how this project aligns with the user's strengths and interests]
       
-      ## Implementation Plan
-      1. [First step]
-      2. [Second step]
-      3. [Additional steps...]
+      ## Market Analysis
+      [Brief analysis of the market opportunity and potential competitors]
       
-      ## Key Success Factors
-      - [Factor 1]
-      - [Factor 2]
-      - [Additional factors...]`;
+      ## Implementation Roadmap
+      
+      ### 2-Week Sprint Plan (Getting Started)
+      1. [Week 1 goals and tasks]
+      2. [Week 2 goals and tasks]
+      
+      **Key Milestones:**
+      - [Milestone 1]
+      - [Milestone 2]
+      
+      ### 2-Month Development Plan
+      1. [Month 1 objectives]
+      2. [Month 2 objectives]
+      
+      **Key Milestones:**
+      - [Milestone 1]
+      - [Milestone 2]
+      
+      ### 2-Year Growth Strategy
+      1. [First 6 months]
+      2. [6-12 months]
+      3. [Year 2]
+      
+      **Key Milestones:**
+      - [Milestone 1]
+      - [Milestone 2]
+      - [Milestone 3]
+      
+      ## Success Metrics
+      - [Key Performance Indicator 1]
+      - [Key Performance Indicator 2]
+      - [Key Performance Indicator 3]
+      
+      ## Resource Requirements
+      - [Technology/Tools needed]
+      - [Skills required]
+      - [Other resources]
+      
+      ## Potential Challenges & Solutions
+      1. Challenge: [Description]
+   Solution: [Proposed solution]
+      
+      2. Challenge: [Description]
+   Solution: [Proposed solution]`;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
