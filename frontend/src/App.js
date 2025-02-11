@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
-import { Sparkles, ArrowLeft, Download, Lightbulb, Key } from 'lucide-react';
+import { Sparkles, ArrowLeft, Download, Lightbulb, Key, User } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 const App = () => {
   const [apiKey, setApiKey] = useState('');
@@ -9,6 +10,10 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [idea, setIdea] = useState(null);
+  const [userPreferences, setUserPreferences] = useState({
+    strengths: '',
+    interests: ''
+  });
 
   const handleApiSubmit = (e) => {
     e.preventDefault();
@@ -21,6 +26,15 @@ const App = () => {
       setError('Please enter a valid OpenAI API key (starts with sk-)');
       return;
     }
+    setStep('preferences');
+  };
+
+  const handlePreferencesSubmit = (e) => {
+    e.preventDefault();
+    if (!userPreferences.strengths.trim() || !userPreferences.interests.trim()) {
+      setError('Please fill in both fields');
+      return;
+    }
     setStep('ideaGen');
   };
 
@@ -29,6 +43,30 @@ const App = () => {
     setError('');
     
     try {
+      const prompt = `As a startup idea generator, consider the following:
+      Strengths: ${userPreferences.strengths}
+      Areas of Interest: ${userPreferences.interests}
+      
+      Based on these preferences, generate a detailed project idea that leverages the user's strengths and aligns with their interests. Include:
+      
+      # Project Title
+      
+      ## Overview
+      [A compelling description of the project]
+      
+      ## Why This Fits You
+      [Explanation of how this matches their strengths and interests]
+      
+      ## Implementation Plan
+      1. [First step]
+      2. [Second step]
+      3. [Additional steps...]
+      
+      ## Key Success Factors
+      - [Factor 1]
+      - [Factor 2]
+      - [Additional factors...]`;
+
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -44,7 +82,7 @@ const App = () => {
             },
             {
               role: 'user',
-              content: 'Generate a detailed project idea for a solopreneur, including a title, description, and step-by-step implementation plan.'
+              content: prompt
             }
           ]
         })
@@ -55,8 +93,9 @@ const App = () => {
       }
 
       const data = await response.json();
-      const generatedIdea = parseAIResponse(data.choices[0].message.content);
-      setIdea(generatedIdea);
+      setIdea({
+        content: data.choices[0].message.content,
+      });
       setStep('idea');
     } catch (err) {
       setError(err.message);
@@ -65,35 +104,55 @@ const App = () => {
     }
   };
 
-  const parseAIResponse = (content) => {
-    // Simple parsing logic - in real app would be more robust
-    return {
-      title: "AI-Generated Project Idea",
-      description: content.split('\n')[0],
-      plan: content.split('\n').slice(1)
-    };
-  };
-
   const exportToPDF = () => {
     try {
       setLoading(true);
       const doc = new jsPDF();
       
-      // Add title
-      doc.setFontSize(20);
-      doc.text(idea.title, 20, 20);
+      // Split content into lines and handle markdown
+      const lines = idea.content.split('\n');
+      let yPos = 20;
+      const margin = 20;
+      const lineHeight = 7;
       
-      // Add description
-      doc.setFontSize(12);
-      doc.text(idea.description, 20, 40, { maxWidth: 170 });
-      
-      // Add implementation plan
-      doc.setFontSize(16);
-      doc.text('Implementation Plan:', 20, 70);
-      
-      doc.setFontSize(12);
-      idea.plan.forEach((step, index) => {
-        doc.text(`${index + 1}. ${step}`, 20, 90 + (index * 10), { maxWidth: 170 });
+      lines.forEach(line => {
+        // Handle different markdown elements
+        if (line.startsWith('# ')) {
+          // Main title
+          doc.setFontSize(20);
+          doc.setFont(undefined, 'bold');
+          doc.text(line.replace('# ', ''), margin, yPos);
+          yPos += lineHeight * 2;
+        } else if (line.startsWith('## ')) {
+          // Subtitle
+          doc.setFontSize(16);
+          doc.setFont(undefined, 'bold');
+          doc.text(line.replace('## ', ''), margin, yPos);
+          yPos += lineHeight * 1.5;
+        } else if (line.startsWith('- ')) {
+          // Bullet points
+          doc.setFontSize(12);
+          doc.setFont(undefined, 'normal');
+          doc.text(line, margin, yPos);
+          yPos += lineHeight;
+        } else if (line.match(/^\d+\./)) {
+          // Numbered lists
+          doc.setFontSize(12);
+          doc.setFont(undefined, 'normal');
+          doc.text(line, margin, yPos);
+          yPos += lineHeight;
+        } else if (line.trim() !== '') {
+          // Regular text
+          doc.setFontSize(12);
+          doc.setFont(undefined, 'normal');
+          doc.text(line, margin, yPos, { maxWidth: 170 });
+          yPos += lineHeight;
+        }
+        
+        // Add extra space after paragraphs
+        if (line.trim() === '') {
+          yPos += lineHeight / 2;
+        }
       });
       
       doc.save('project-idea.pdf');
@@ -106,7 +165,7 @@ const App = () => {
   };
 
   const goBack = () => {
-    setStep(step === 'idea' ? 'ideaGen' : 'api');
+    setStep(step === 'idea' ? 'ideaGen' : step === 'ideaGen' ? 'preferences' : 'api');
     setError('');
   };
 
@@ -122,7 +181,7 @@ const App = () => {
             <Sparkles className="w-5 h-5 text-primary-500" />
             <span className="text-primary-700 font-medium">AI-Powered Innovation</span>
           </div>
-          <h1 className="text-5xl font-bold text-gray-900 font-display tracking-tight">
+          <h1 className="text-5xl font-bold text-gray-900 font-display">
             SoloPro
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -184,7 +243,7 @@ const App = () => {
                   type="submit"
                   className="w-full bg-primary-600 text-white py-3 px-6 rounded-xl hover:bg-primary-700 transition-colors duration-200 shadow-sm hover:shadow-md flex items-center justify-center space-x-2 font-medium"
                 >
-                  <span>Get Started</span>
+                  <span>Continue</span>
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
@@ -197,6 +256,76 @@ const App = () => {
                   OpenAI Platform
                 </a>
               </p>
+            </motion.div>
+          )}
+
+          {step === 'preferences' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white rounded-2xl shadow-soft p-8 max-w-lg mx-auto border border-gray-100"
+            >
+              <div className="flex flex-col items-center text-center mb-8">
+                <div className="w-12 h-12 bg-secondary-100 rounded-xl flex items-center justify-center mb-4">
+                  <User className="w-6 h-6 text-secondary-600" />
+                </div>
+                <h2 className="text-2xl font-semibold text-gray-900 font-display">Tell Us About Yourself</h2>
+                <p className="text-gray-600 mt-2 max-w-sm">
+                  Help us understand your strengths and interests to generate better-suited project ideas.
+                </p>
+              </div>
+              
+              <form onSubmit={handlePreferencesSubmit} className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="strengths" className="block text-sm font-medium text-gray-700 mb-1">
+                      What are your key strengths and skills?
+                    </label>
+                    <textarea
+                      id="strengths"
+                      value={userPreferences.strengths}
+                      onChange={(e) => setUserPreferences(prev => ({ ...prev, strengths: e.target.value }))}
+                      placeholder="E.g., programming, design, marketing, writing..."
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 shadow-sm placeholder-gray-400 text-gray-900 min-h-[100px]"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="interests" className="block text-sm font-medium text-gray-700 mb-1">
+                      What areas or industries interest you?
+                    </label>
+                    <textarea
+                      id="interests"
+                      value={userPreferences.interests}
+                      onChange={(e) => setUserPreferences(prev => ({ ...prev, interests: e.target.value }))}
+                      placeholder="E.g., education, health tech, e-commerce..."
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 shadow-sm placeholder-gray-400 text-gray-900 min-h-[100px]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <button
+                    type="submit"
+                    className="w-full bg-secondary-600 text-white py-3 px-6 rounded-xl hover:bg-secondary-700 transition-colors duration-200 shadow-sm hover:shadow-md flex items-center justify-center space-x-2 font-medium"
+                  >
+                    <span>Continue</span>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    className="w-full bg-white text-gray-700 py-3 px-6 rounded-xl hover:bg-gray-50 transition-colors border border-gray-200 flex items-center justify-center space-x-2 font-medium"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                    <span>Back</span>
+                  </button>
+                </div>
+              </form>
             </motion.div>
           )}
 
@@ -213,7 +342,7 @@ const App = () => {
                 </div>
                 <h2 className="text-2xl font-semibold text-gray-900 font-display">Generate Your Project Idea</h2>
                 <p className="text-gray-600 mt-2 max-w-sm">
-                  Our AI will help you generate innovative project ideas tailored to your entrepreneurial journey.
+                  Our AI will generate a project idea tailored to your strengths and interests.
                 </p>
               </div>
               
@@ -271,14 +400,24 @@ const App = () => {
               className="bg-white rounded-2xl shadow-soft p-8 max-w-3xl mx-auto border border-gray-100"
             >
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-bold text-gray-900 font-display">{idea.title}</h2>
+                <h2 className="text-3xl font-bold text-gray-900 font-display">Your Project Idea</h2>
                 <div className="flex space-x-2">
                   <button
                     onClick={exportToPDF}
-                    className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                    disabled={loading}
+                    className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700 transition-all duration-200 shadow-sm hover:shadow-md disabled:bg-primary-300 disabled:cursor-not-allowed"
                   >
-                    <Download className="w-4 h-4 mr-2" />
-                    Export PDF
+                    {loading ? (
+                      <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4 mr-2" />
+                        Export PDF
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={goBack}
@@ -290,44 +429,28 @@ const App = () => {
                 </div>
               </div>
               
-              <div className="space-y-8">
-                <div className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-xl p-6">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3 flex items-center">
-                    <svg className="w-5 h-5 text-primary-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    Project Overview
-                  </h3>
-                  <p className="text-gray-700 leading-relaxed">{idea.description}</p>
-                </div>
-                
-                <div className="bg-white rounded-xl border border-gray-100 p-6">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                    <svg className="w-5 h-5 text-secondary-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    Implementation Plan
-                  </h3>
-                  <ol className="space-y-4">
-                    {idea.plan.map((step, index) => (
-                      <li key={index} className="flex items-start">
-                        <span className="flex-shrink-0 w-8 h-8 bg-secondary-100 rounded-full flex items-center justify-center text-secondary-600 font-semibold mr-3">
-                          {index + 1}
-                        </span>
-                        <p className="text-gray-700 mt-1">{step}</p>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-                
-                <div className="bg-gray-50 rounded-xl p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Sparkles className="w-5 h-5 text-primary-500" />
-                      <span className="text-sm font-medium text-gray-700">Generated by AI</span>
-                    </div>
-                    <span className="text-sm text-gray-500">{new Date().toLocaleDateString()}</span>
+              <div className="prose prose-lg max-w-none">
+                <ReactMarkdown
+                  components={{
+                    h1: ({ node, ...props }) => <h1 className="text-3xl font-bold text-gray-900 mb-4" {...props} />,
+                    h2: ({ node, ...props }) => <h2 className="text-2xl font-semibold text-gray-800 mt-8 mb-4" {...props} />,
+                    p: ({ node, ...props }) => <p className="text-gray-600 mb-4 leading-relaxed" {...props} />,
+                    ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-2 mb-6" {...props} />,
+                    ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-2 mb-6" {...props} />,
+                    li: ({ node, ...props }) => <li className="text-gray-600" {...props} />,
+                  }}
+                >
+                  {idea.content}
+                </ReactMarkdown>
+              </div>
+              
+              <div className="mt-8 p-6 bg-gray-50 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="w-5 h-5 text-primary-500" />
+                    <span className="text-sm font-medium text-gray-700">Generated by AI based on your preferences</span>
                   </div>
+                  <span className="text-sm text-gray-500">{new Date().toLocaleDateString()}</span>
                 </div>
               </div>
             </motion.div>
