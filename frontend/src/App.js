@@ -146,56 +146,137 @@ const App = () => {
     try {
       setLoading(true);
       const doc = new jsPDF();
-      
-      // Split content into lines and handle markdown
-      const lines = idea.content.split('\n');
-      let yPos = 20;
+      const pageWidth = doc.internal.pageSize.width;
       const margin = 20;
-      const lineHeight = 7;
+      const contentWidth = pageWidth - (margin * 2);
+      let yPos = margin;
       
-      lines.forEach(line => {
-        // Handle different markdown elements
-        if (line.startsWith('# ')) {
-          // Main title
-          doc.setFontSize(20);
-          doc.setFont(undefined, 'bold');
-          doc.text(line.replace('# ', ''), margin, yPos);
-          yPos += lineHeight * 2;
-        } else if (line.startsWith('## ')) {
-          // Subtitle
-          doc.setFontSize(16);
-          doc.setFont(undefined, 'bold');
-          doc.text(line.replace('## ', ''), margin, yPos);
-          yPos += lineHeight * 1.5;
-        } else if (line.startsWith('- ')) {
-          // Bullet points
-          doc.setFontSize(12);
-          doc.setFont(undefined, 'normal');
-          doc.text(line, margin, yPos);
-          yPos += lineHeight;
-        } else if (line.match(/^\d+\./)) {
-          // Numbered lists
-          doc.setFontSize(12);
-          doc.setFont(undefined, 'normal');
-          doc.text(line, margin, yPos);
-          yPos += lineHeight;
-        } else if (line.trim() !== '') {
-          // Regular text
-          doc.setFontSize(12);
-          doc.setFont(undefined, 'normal');
-          doc.text(line, margin, yPos, { maxWidth: 170 });
-          yPos += lineHeight;
+      // Helper function to add text with proper line breaks and spacing
+      const addText = (text, fontSize, isBold = false, maxWidth = contentWidth) => {
+        doc.setFontSize(fontSize);
+        doc.setFont(undefined, isBold ? 'bold' : 'normal');
+        
+        const lines = doc.splitTextToSize(text, maxWidth);
+        doc.text(lines, margin, yPos);
+        yPos += (fontSize / 4) * lines.length + 5;
+        
+        // Add extra spacing after the text block
+        yPos += 5;
+        
+        // Check if we need a new page
+        if (yPos > doc.internal.pageSize.height - margin) {
+          doc.addPage();
+          yPos = margin;
+        }
+      };
+      
+      // Helper function to add a section
+      const addSection = (title, content, level = 1) => {
+        // Add section title
+        const fontSize = level === 1 ? 18 : level === 2 ? 14 : 12;
+        addText(title, fontSize, true);
+        
+        // Add section content
+        if (Array.isArray(content)) {
+          content.forEach((item, index) => {
+            const bulletPoint = item.startsWith('-') ? item : `${index + 1}. ${item}`;
+            addText(bulletPoint, 11, false, contentWidth - 10);
+          });
+        } else {
+          addText(content, 11);
         }
         
-        // Add extra space after paragraphs
-        if (line.trim() === '') {
-          yPos += lineHeight / 2;
+        // Add extra spacing after section
+        yPos += 5;
+      };
+
+      // Parse markdown content
+      const sections = idea.content.split('\n\n').reduce((acc, section) => {
+        if (section.startsWith('# ')) {
+          // Main title
+          acc.push({ type: 'title', content: section.replace('# ', '') });
+        } else if (section.startsWith('## ')) {
+          // Section title
+          acc.push({ type: 'section', content: section.replace('## ', '') });
+        } else if (section.startsWith('### ')) {
+          // Subsection title
+          acc.push({ type: 'subsection', content: section.replace('### ', '') });
+        } else if (section.trim().startsWith('- ')) {
+          // Bullet points
+          acc.push({ type: 'bullets', content: section.split('\n').map(s => s.trim()) });
+        } else if (section.trim().match(/^\d+\./)) {
+          // Numbered list
+          acc.push({ type: 'numbered', content: section.split('\n').map(s => s.trim()) });
+        } else if (section.trim().startsWith('**')) {
+          // Bold text (like milestones)
+          acc.push({ type: 'bold', content: section.replace(/\*\*/g, '') });
+        } else if (section.trim()) {
+          // Regular paragraph
+          acc.push({ type: 'paragraph', content: section.trim() });
+        }
+        return acc;
+      }, []);
+
+      // Add header with date and branding
+      doc.setFillColor(247, 250, 252);
+      doc.rect(0, 0, pageWidth, 40, 'F');
+      doc.setTextColor(79, 70, 229);
+      doc.setFontSize(24);
+      doc.setFont(undefined, 'bold');
+      doc.text('SoloPro', margin, 25);
+      doc.setFontSize(10);
+      doc.setTextColor(107, 114, 128);
+      doc.text(`Generated on ${new Date().toLocaleDateString()}`, pageWidth - margin - 40, 25);
+      
+      // Reset position after header
+      yPos = 50;
+      doc.setTextColor(0, 0, 0);
+
+      // Process each section
+      sections.forEach(section => {
+        switch (section.type) {
+          case 'title':
+            addText(section.content, 24, true);
+            break;
+          case 'section':
+            addText(section.content, 18, true);
+            break;
+          case 'subsection':
+            addText(section.content, 14, true);
+            break;
+          case 'bullets':
+          case 'numbered':
+            section.content.forEach(item => {
+              addText(item, 11, false, contentWidth - 10);
+            });
+            break;
+          case 'bold':
+            addText(section.content, 12, true);
+            break;
+          case 'paragraph':
+            addText(section.content, 11);
+            break;
         }
       });
+
+      // Add footer
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.setTextColor(128, 128, 128);
+        doc.text(
+          `Page ${i} of ${pageCount}`,
+          pageWidth / 2,
+          doc.internal.pageSize.height - 10,
+          { align: 'center' }
+        );
+      }
       
       doc.save('project-idea.pdf');
       setError('');
     } catch (err) {
+      console.error('PDF generation error:', err);
       setError('Failed to generate PDF. Please try again.');
     } finally {
       setLoading(false);
