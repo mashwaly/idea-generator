@@ -171,7 +171,7 @@ const App = () => {
       };
       
       // Process sections directly without using addSection helper
-      const sections = idea.content.split('\n\n').forEach(section => {
+      idea.content.split('\n\n').forEach(section => {
         if (section.startsWith('# ')) {
           // Main title
           addText(section.replace('# ', ''), 24, true);
