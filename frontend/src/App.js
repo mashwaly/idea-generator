@@ -170,54 +170,32 @@ const App = () => {
         }
       };
       
-      // Helper function to add a section
-      const addSection = (title, content, level = 1) => {
-        // Add section title
-        const fontSize = level === 1 ? 18 : level === 2 ? 14 : 12;
-        addText(title, fontSize, true);
-        
-        // Add section content
-        if (Array.isArray(content)) {
-          content.forEach((item, index) => {
-            const bulletPoint = item.startsWith('-') ? item : `${index + 1}. ${item}`;
-            addText(bulletPoint, 11, false, contentWidth - 10);
-          });
-        } else {
-          addText(content, 11);
-        }
-        
-        // Add extra spacing after section
-        yPos += 5;
-      };
-
-      // Parse markdown content
-      const sections = idea.content.split('\n\n').reduce((acc, section) => {
+      // Process sections directly without using addSection helper
+      const sections = idea.content.split('\n\n').forEach(section => {
         if (section.startsWith('# ')) {
           // Main title
-          acc.push({ type: 'title', content: section.replace('# ', '') });
+          addText(section.replace('# ', ''), 24, true);
         } else if (section.startsWith('## ')) {
           // Section title
-          acc.push({ type: 'section', content: section.replace('## ', '') });
+          addText(section.replace('## ', ''), 18, true);
         } else if (section.startsWith('### ')) {
           // Subsection title
-          acc.push({ type: 'subsection', content: section.replace('### ', '') });
+          addText(section.replace('### ', ''), 14, true);
         } else if (section.trim().startsWith('- ')) {
           // Bullet points
-          acc.push({ type: 'bullets', content: section.split('\n').map(s => s.trim()) });
-        } else if (section.trim().match(/^\d+\./)) {
-          // Numbered list
-          acc.push({ type: 'numbered', content: section.split('\n').map(s => s.trim()) });
+          section.split('\n').forEach(line => {
+            addText(line.trim(), 11, false, contentWidth - 10);
+          });
         } else if (section.trim().startsWith('**')) {
           // Bold text (like milestones)
-          acc.push({ type: 'bold', content: section.replace(/\*\*/g, '') });
+          addText(section.replace(/\*\*/g, ''), 12, true);
         } else if (section.trim()) {
           // Regular paragraph
-          acc.push({ type: 'paragraph', content: section.trim() });
+          addText(section.trim(), 11);
         }
-        return acc;
-      }, []);
+      });
 
-      // Add header with date and branding
+      // Add header and footer
       doc.setFillColor(247, 250, 252);
       doc.rect(0, 0, pageWidth, 40, 'F');
       doc.setTextColor(79, 70, 229);
@@ -227,39 +205,8 @@ const App = () => {
       doc.setFontSize(10);
       doc.setTextColor(107, 114, 128);
       doc.text(`Generated on ${new Date().toLocaleDateString()}`, pageWidth - margin - 40, 25);
-      
-      // Reset position after header
-      yPos = 50;
-      doc.setTextColor(0, 0, 0);
 
-      // Process each section
-      sections.forEach(section => {
-        switch (section.type) {
-          case 'title':
-            addText(section.content, 24, true);
-            break;
-          case 'section':
-            addText(section.content, 18, true);
-            break;
-          case 'subsection':
-            addText(section.content, 14, true);
-            break;
-          case 'bullets':
-          case 'numbered':
-            section.content.forEach(item => {
-              addText(item, 11, false, contentWidth - 10);
-            });
-            break;
-          case 'bold':
-            addText(section.content, 12, true);
-            break;
-          case 'paragraph':
-            addText(section.content, 11);
-            break;
-        }
-      });
-
-      // Add footer
+      // Add page numbers
       const pageCount = doc.internal.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
