@@ -16,6 +16,10 @@ const App = () => {
       setError('Please enter your OpenAI API key');
       return;
     }
+    if (!apiKey.startsWith('sk-')) {
+      setError('Please enter a valid OpenAI API key (starts with sk-)');
+      return;
+    }
     setStep('ideaGen');
   };
 
@@ -70,26 +74,34 @@ const App = () => {
   };
 
   const exportToPDF = () => {
-    const doc = new jsPDF();
-    
-    // Add title
-    doc.setFontSize(20);
-    doc.text(idea.title, 20, 20);
-    
-    // Add description
-    doc.setFontSize(12);
-    doc.text(idea.description, 20, 40, { maxWidth: 170 });
-    
-    // Add implementation plan
-    doc.setFontSize(16);
-    doc.text('Implementation Plan:', 20, 70);
-    
-    doc.setFontSize(12);
-    idea.plan.forEach((step, index) => {
-      doc.text(`${index + 1}. ${step}`, 20, 90 + (index * 10), { maxWidth: 170 });
-    });
-    
-    doc.save('project-idea.pdf');
+    try {
+      setLoading(true);
+      const doc = new jsPDF();
+      
+      // Add title
+      doc.setFontSize(20);
+      doc.text(idea.title, 20, 20);
+      
+      // Add description
+      doc.setFontSize(12);
+      doc.text(idea.description, 20, 40, { maxWidth: 170 });
+      
+      // Add implementation plan
+      doc.setFontSize(16);
+      doc.text('Implementation Plan:', 20, 70);
+      
+      doc.setFontSize(12);
+      idea.plan.forEach((step, index) => {
+        doc.text(`${index + 1}. ${step}`, 20, 90 + (index * 10), { maxWidth: 170 });
+      });
+      
+      doc.save('project-idea.pdf');
+      setError('');
+    } catch (err) {
+      setError('Failed to generate PDF. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const goBack = () => {
