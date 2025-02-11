@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 import sys
 import os
@@ -11,9 +11,11 @@ with patch('motor.motor_asyncio.AsyncIOMotorClient'):
 client = TestClient(app)
 
 def test_root_endpoint():
+    """Test the root endpoint"""
     response = client.get("/")
     assert response.status_code == 200
     assert response.json() == {"message": "Hello World"}
 
-# Note: Since most functionality is client-side with OpenAI API,
-# we have limited backend tests. The main testing will be done through UI testing.
+# Note: Most functionality is client-side with OpenAI API.
+# The backend mainly serves as a lightweight API layer.
+# Main testing will focus on UI and OpenAI API integration.
