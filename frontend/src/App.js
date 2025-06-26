@@ -498,9 +498,14 @@ const App = () => {
               <div className="prose prose-lg max-w-none">
                 <ReactMarkdown
                   components={{
-                    h1: ({ node, ...props }) => <h1 className="text-3xl font-bold text-gray-900 mb-4" {...props} />,
-                    h2: ({ node, ...props }) => <h2 className="text-2xl font-semibold text-gray-800 mt-8 mb-4" {...props} />,
-                    p: ({ node, ...props }) => <p className="text-gray-600 mb-4 leading-relaxed" {...props} />,
+                    h1: ({ node, ...props }) => {
+  if (!props.children || props.children.length === 0) return null;
+  return <h1 className="text-3xl font-bold text-gray-900 mb-4" {...props} />;
+},
+h2: ({ node, ...props }) => {
+  if (!props.children || props.children.length === 0) return null;
+  return <h2 className="text-2xl font-semibold text-gray-800 mt-8 mb-4" {...props} />;
+},                    p: ({ node, ...props }) => <p className="text-gray-600 mb-4 leading-relaxed" {...props} />,
                     ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-2 mb-6" {...props} />,
                     ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-2 mb-6" {...props} />,
                     li: ({ node, ...props }) => <li className="text-gray-600" {...props} />,
